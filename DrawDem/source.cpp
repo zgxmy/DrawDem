@@ -62,7 +62,7 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 1.0f), -90.0f, 
 
 int main()
 {
-	DemData d("C:\\Users\\Administrator\\Desktop\\1.asc");
+	DemData d("Data\\1.asc");
 	
 	
 	demVertice = new float[d.ncols*d.nrows * 2 * 3];
@@ -243,7 +243,7 @@ int main()
 		lineShader.setMat4("view", view);
 		glBindVertexArray(gridVAO[0]);
 		model = glm::mat4(1.0f);
-		for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
+		for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
 		{
 			lineShader.setMat4("model", model);
 			model = glm::translate(model, glm::vec3(0.0f, offset * 3, 0.0f));
@@ -251,11 +251,11 @@ int main()
 		}
 		glBindVertexArray(gridVAO[1]);
 		model = glm::mat4(1.0f);
-		for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
+		for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
 		{
 			lineShader.setMat4("model", model);
 			model = glm::translate(model, glm::vec3(offset * 3, 0.0f, 0.0f));
-			glDrawArrays(GL_LINE_STRIP, 0, d.ncols);
+			glDrawArrays(GL_LINE_STRIP, 0, d.nrows);
 		}
 
 		for (int i = 0; i < contourSize; i++) {
