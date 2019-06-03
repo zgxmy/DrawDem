@@ -59,11 +59,26 @@ int* demIndice;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 1.0f), -90.0f, 60.0f);
 
 
+void RaiseContour(DemData* d,float raiseAt,float raiseHeight) {
+	for (int r = 0; r < d->nrows; r++)
+		for (int c = 0; c < d->ncols; c++)
+		{	
+			int cur = c + r * d->ncols;
+			//calculate new height
+			if (d->data[r][c] > raiseAt)
+				d->data[r][c] = d->data[r][c] + raiseHeight;
+			else
+				d->data[r][c] = (d->data[r][c] - d->minHeight) *(raiseAt + raiseHeight - d->minHeight) / (raiseAt - d->minHeight) + d->minHeight;
+			demVertice[cur * 6 + 2] = (d->data[r][c] - d->averHeight)*offset*0.1f;
+			//re-calculate rgb	
+			GetVerticeColor(d, &demVertice[cur * 6 + 3], r, c);
+		}
+}
+
 
 int main()
 {
 	DemData d("Data\\1.asc");
-	
 	
 	demVertice = new float[d.ncols*d.nrows * 2 * 3];
 	demIndice = new int[d.ncols*d.nrows * 2 * 3];
@@ -87,9 +102,11 @@ int main()
 				demIndice[cur * 6 + 5] = cur + d.ncols + 1;
 			}		
 		}
+	
+	RaiseContour(&d, 920, -100);
 
-	int contourSize = 5; float contourOffset = 50.0f;
-	float contourStart = 700.0f;
+	int contourSize = 1; float contourOffset = 50.0f;
+	float contourStart = 820;
 	MatchingBox* boxArray = new MatchingBox[contourSize];
 	for (int i = 0; i < contourSize; i++) {
 		boxArray[i] = MatchingBox(contourStart + i*contourOffset, &d);
@@ -109,6 +126,9 @@ int main()
 		rowLineVertice[i * 3 + 1] = demVertice[i * d.ncols * 6 + 1];
 		rowLineVertice[i * 3 + 2] = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
 	}
+
+
+	
 	//cout << d.minHeight << d.maxHeight << endl;
 	/*
 	for (int i = 0; i < box.lineSize*2; i++)
