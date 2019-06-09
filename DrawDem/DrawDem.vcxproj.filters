@@ -50,5 +50,7 @@
     <None Include="FirstShader.vert" />
     <None Include="Line.vs" />
     <None Include="Line.fs" />
+    <None Include="SkyBox.vs" />
+    <None Include="SkyBox.fs" />
   </ItemGroup>
 </Project>
