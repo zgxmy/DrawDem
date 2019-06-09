@@ -12,6 +12,9 @@
 #include "MatchingBox.h"
 #include "Shader.h"
 #include "camera.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 using namespace std;
 glm::vec3 HSVtoRGB(float h, float s, float v);
 void processInput(GLFWwindow *window);
@@ -22,6 +25,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+bool contourMode = true;
 
 float offset = 0.01f;
 
@@ -58,40 +63,91 @@ float* demVertice;
 int* demIndice;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 1.0f), -90.0f, 60.0f);
 
+DemData* dataPtr;
+DemData* dataRaw;
 
-void RaiseContour(DemData* d,float raiseAt,float raiseHeight) {
-	for (int r = 0; r < d->nrows; r++)
-		for (int c = 0; c < d->ncols; c++)
+MatchingBox* contour;
+
+float curHeight = 900;
+
+void RaiseContour(float raiseAt,float raiseHeight) {
+	
+	if (curHeight + raiseHeight < dataPtr->minHeight )
+		return;
+
+	//float* tempHeight = new float[dataPtr->nrows*dataPtr->ncols];
+	for (int r = 0; r < dataPtr->nrows; r++)
+		for (int c = 0; c < dataPtr->ncols; c++)
 		{	
-			int cur = c + r * d->ncols;
+			int cur = c + r * dataPtr->ncols;
+			
 			//calculate new height
-			if (d->data[r][c] > raiseAt)
-				d->data[r][c] = d->data[r][c] + raiseHeight;
+			if (dataPtr->data[r][c] > raiseAt)
+				dataPtr->data[r][c] = dataPtr->data[r][c] + raiseHeight;
 			else
-				d->data[r][c] = (d->data[r][c] - d->minHeight) *(raiseAt + raiseHeight - d->minHeight) / (raiseAt - d->minHeight) + d->minHeight;
-			demVertice[cur * 6 + 2] = (d->data[r][c] - d->averHeight)*offset*0.1f;
+				dataPtr->data[r][c] = (dataPtr->data[r][c] - dataPtr->minHeight) *(raiseAt + raiseHeight - dataPtr->minHeight) / (raiseAt - dataPtr->minHeight) + dataPtr->minHeight;
+			demVertice[cur * 8 + 2] = (dataPtr->data[r][c] - dataPtr->averHeight)*offset*0.1f;
+			//tempHeight[cur] = dataPtr->data[r][c];
 			//re-calculate rgb	
-			GetVerticeColor(d, &demVertice[cur * 6 + 3], r, c);
+			GetVerticeColor(dataPtr, &demVertice[cur * 8 + 3], r, c);
 		}
+
+	curHeight += raiseHeight;
+	glBindBuffer(GL_ARRAY_BUFFER, demVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8 * dataPtr->ncols*dataPtr->nrows, &demVertice[0], GL_STATIC_DRAW);
+
+	for (int i = 0; i <2 * contour->lineSize; i++) {
+		contour->lines[i * 3 + 2] = contour->lines[i * 3 + 2] + raiseHeight*offset*0.1f;
+	}
+	if (contourMode) {		
+		glBindBuffer(GL_ARRAY_BUFFER, contourVBO[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * contour->lineSize * 2, &contour->lines[0], GL_STATIC_DRAW);
+	}
+	else {
+		MatchingBox c = MatchingBox(raiseAt + raiseHeight, dataPtr);
+		glBindBuffer(GL_ARRAY_BUFFER, contourVBO[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * c.lineSize * 2, c.lines, GL_STATIC_DRAW);
+	}
+	
+	
+	//delete[] tempHeight;
 }
 
 
+enum RenderType{
+	lineFrame,
+	solidColor,
+	texture,
+	textureMixedHeight
+};
+
+
+
+RenderType renderType;
 int main()
 {
+
+	renderType = (RenderType)0;
 	DemData d("Data\\1.asc");
-	
-	demVertice = new float[d.ncols*d.nrows * 2 * 3];
-	demIndice = new int[d.ncols*d.nrows * 2 * 3];
+	dataPtr = &d;
+	dataRaw = new DemData("Data\\1.asc");
+
+	demVertice = new float[d.ncols*d.nrows * 8];
+	demIndice = new int[d.ncols*d.nrows * 6];
 	for (int r = 0; r < d.nrows ; r++)
 		for (int c = 0; c < d.ncols ; c++)
 		{
 			int cur = c + r * d.ncols;
 			//position
-			demVertice[cur * 6] = offset * c;
-			demVertice[cur * 6 + 1] = offset * r;
-			demVertice[cur * 6 + 2] = (d.data[r][c] - d.averHeight)*offset*0.1f;
+			demVertice[cur * 8] = offset * c;
+			demVertice[cur * 8 + 1] = offset * r;
+			demVertice[cur * 8 + 2] = (d.data[r][c] - d.averHeight)*offset*0.1f;
 			//rgb	
-			GetVerticeColor(&d,&demVertice[cur * 6 + 3],r,c);		
+			GetVerticeColor(&d,&demVertice[cur * 8 + 3],r,c);
+			//uv
+			demVertice[cur * 8 + 6] = c/(float)d.ncols;
+			demVertice[cur * 8 + 7] = r/(float)d.nrows;
+			//cout << c / (float)d.ncols << endl;
 			//indice
 			if (r < d.nrows - 1 && c < d.ncols - 1) {
 				demIndice[cur * 6] = cur;
@@ -103,31 +159,31 @@ int main()
 			}		
 		}
 	
-	RaiseContour(&d, 920, -100);
+	
 
 	int contourSize = 1; float contourOffset = 50.0f;
-	float contourStart = 820;
+	float contourStart = 900;
 	MatchingBox* boxArray = new MatchingBox[contourSize];
 	for (int i = 0; i < contourSize; i++) {
 		boxArray[i] = MatchingBox(contourStart + i*contourOffset, &d);
 	}
-	
+	contour = &boxArray[0];
 
 	colLineVertice = new float[d.ncols * 3];
 	for (int i = 0; i < d.ncols; i++) {
-		colLineVertice[i * 3] = demVertice[i * 6];
-		colLineVertice[i * 3 + 1] = demVertice[i * 6 + 1];
+		colLineVertice[i * 3] = demVertice[i * 8];
+		colLineVertice[i * 3 + 1] = demVertice[i * 8 + 1];
 		colLineVertice[i * 3 + 2] = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
 	}
 
 	rowLineVertice = new float[d.nrows * 3];
 	for (int i = 0; i < d.nrows; i++) {
-		rowLineVertice[i * 3] = demVertice[i * d.ncols * 6];
-		rowLineVertice[i * 3 + 1] = demVertice[i * d.ncols * 6 + 1];
+		rowLineVertice[i * 3] = demVertice[i * d.ncols * 8];
+		rowLineVertice[i * 3 + 1] = demVertice[i * d.ncols * 8 + 1];
 		rowLineVertice[i * 3 + 2] = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
 	}
 
-
+	
 	
 	//cout << d.minHeight << d.maxHeight << endl;
 	/*
@@ -145,7 +201,7 @@ int main()
 	glfwWindowHint(GLFW_SAMPLES, 4);
 	//glEnable(GL_MULTISAMPLE);
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(800, 600, "DrawDem", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -182,17 +238,20 @@ int main()
 	
 	glBindVertexArray(demVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, demVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(demVertice)* 6 * d.ncols*d.nrows, &demVertice[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(demVertice)* 8 * d.ncols*d.nrows, &demVertice[0], GL_STATIC_DRAW);
 	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, demEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * 6 * (d.ncols - 1) * (d.nrows -1) , &demIndice[0], GL_STATIC_DRAW);
 	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
+
 
 
 	glBindVertexArray(gridVAO[0]);
@@ -216,9 +275,29 @@ int main()
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
 	
-	}
-	
+	}	
 
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	// 为当前绑定的纹理对象设置环绕、过滤方式
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// 加载并生成纹理
+	int width, height, nrChannels;
+	unsigned char *data = stbi_load("grass1.jpg", &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
 
 
 	glViewport(0, 0, 800, 600);
@@ -228,8 +307,12 @@ int main()
 	camera.SetPosition(glm::vec3(d.ncols*offset/2, d.ncols*offset / 2 - 1.5f , 0.8f));
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+	//RaiseContour(900,  651.0f-900.0f);
 	while (!glfwWindowShouldClose(window))
 	{
+		
+
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
@@ -243,40 +326,51 @@ int main()
 		//glm::mat4 model;
 		glm::mat4 model = glm::mat4(1.0f);
 
-
+		glBindTexture(GL_TEXTURE_2D, texture);
 		//draw dem
 		ourShader.use();
 		ourShader.setMat4("projection", projection);
 		ourShader.setMat4("view", view);
 		ourShader.setMat4("model", model);
+		ourShader.setInt("type", renderType);
+		
 		glBindVertexArray(demVAO);
 		glDrawElements(GL_TRIANGLES, (d.ncols - 1)*(d.nrows - 1) * 6, GL_UNSIGNED_INT, 0);
 		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
 		//glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		if(renderType == 0)
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		else
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-		//draw grid
 		lineShader.use();
 		lineShader.setVec3("color", glm::vec3(1.0f, 1.0f, 1.0f));
 		lineShader.setMat4("projection", projection);
 		lineShader.setMat4("view", view);
-		glBindVertexArray(gridVAO[0]);
-		model = glm::mat4(1.0f);
-		for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
-		{
-			lineShader.setMat4("model", model);
-			model = glm::translate(model, glm::vec3(0.0f, offset * 3, 0.0f));
-			glDrawArrays(GL_LINE_STRIP, 0, d.ncols);
+		if (renderType == 0) {
+			//draw grid
+			
+			glBindVertexArray(gridVAO[0]);
+			model = glm::mat4(1.0f);
+			for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
+			{
+				lineShader.setMat4("model", model);
+				model = glm::translate(model, glm::vec3(0.0f, offset * 3, 0.0f));
+				glDrawArrays(GL_LINE_STRIP, 0, d.ncols);
+			}
+			glBindVertexArray(gridVAO[1]);
+			model = glm::mat4(1.0f);
+			for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
+			{
+				lineShader.setMat4("model", model);
+				model = glm::translate(model, glm::vec3(offset * 3, 0.0f, 0.0f));
+				glDrawArrays(GL_LINE_STRIP, 0, d.nrows);
+			}
+			
 		}
-		glBindVertexArray(gridVAO[1]);
-		model = glm::mat4(1.0f);
-		for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
-		{
-			lineShader.setMat4("model", model);
-			model = glm::translate(model, glm::vec3(offset * 3, 0.0f, 0.0f));
-			glDrawArrays(GL_LINE_STRIP, 0, d.nrows);
-		}
+
 
 		for (int i = 0; i < contourSize; i++) {
 			//TODO: Fade Color by HSV
@@ -286,7 +380,7 @@ int main()
 			lineShader.setMat4("model", model);
 			glLineWidth(5.0f);
 			glDrawArrays(GL_LINES, 0, boxArray[i].lineSize * 2);
-			
+
 		}
 
 
@@ -298,6 +392,7 @@ int main()
 	glDeleteVertexArrays(1, &demVAO);
 	glDeleteBuffers(1, &demVBO);
 	glDeleteBuffers(1, &demEBO);
+
 
 	glDeleteVertexArrays(2,gridVAO);
 	glDeleteBuffers(2, gridVBO);
@@ -326,6 +421,27 @@ void processInput(GLFWwindow *window)
 		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
+
+
+	if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
+		renderType = (RenderType)0;
+	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
+		renderType = (RenderType)1;
+	if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS)
+		renderType = (RenderType)2;
+	if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_PRESS)
+		renderType = (RenderType)3;
+
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) 
+		RaiseContour(900, 10);
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+		RaiseContour(900, -10);
+
+
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+		contourMode = true;
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+		contourMode = false;
 		
 	
 }
