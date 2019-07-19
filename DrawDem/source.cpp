@@ -12,6 +12,7 @@
 #include "MatchingBox.h"
 #include "Shader.h"
 #include "camera.h"
+#include "d8.h"
 using namespace std;
 glm::vec3 HSVtoRGB(float h, float s, float v);
 void processInput(GLFWwindow *window);
@@ -76,10 +77,22 @@ void RaiseContour(DemData* d,float raiseAt,float raiseHeight) {
 }
 
 
+
 int main()
 {
 	DemData d("Data\\1.asc");
 	
+	DemData d1("Data\\1.asc");
+	/*for (int r = 0; r < d.nrows; r++){
+		for (int c = 0; c < d.ncols; c++)
+		{
+			if (d.data[r][c] - d1.data[r][c] != 0)
+				cout << d.data[r][c];
+		}
+	}*/
+	D8 d8(d);
+	d8.PrintDataNIP(1);
+	//d8.PrintData(10);
 	demVertice = new float[d.ncols*d.nrows * 2 * 3];
 	demIndice = new int[d.ncols*d.nrows * 2 * 3];
 	for (int r = 0; r < d.nrows ; r++)
