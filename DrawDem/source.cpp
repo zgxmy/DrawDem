@@ -186,7 +186,7 @@ int main()
 
 	renderType = (RenderType)0;
 	DemData d("Data\\1.asc");
-	
+	DemData::Smooth(d);
 	DemData d1("Data\\1.asc");
 	/*for (int r = 0; r < d.nrows; r++){
 		for (int c = 0; c < d.ncols; c++)

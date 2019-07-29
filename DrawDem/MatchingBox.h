@@ -5,6 +5,7 @@ class MatchingBox
 public:
 	MatchingBox();
 	MatchingBox(float height,DemData* d);
+	MatchingBox(const MatchingBox &mb);
 	~MatchingBox();
 	void CountLineSize(unsigned int i);
 	unsigned int Cell(char a, char b, char c, char d);

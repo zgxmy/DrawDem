@@ -21,6 +21,8 @@ public:
 	float maxHeight;
 	float deltaHeight;
 	DemData(string s);
+	DemData(const DemData& );
+	static void Smooth(DemData &);
 	~DemData();
 };
 

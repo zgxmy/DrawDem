@@ -35,6 +35,28 @@ MatchingBox::MatchingBox(float height, DemData* d)
 		}
 }
 
+MatchingBox::MatchingBox(const MatchingBox & mb)
+{
+	nrows = mb.ncols;
+	ncols = mb.ncols;
+	height = mb.height;
+	lineSize = mb.lineSize;
+	sign = new char *[nrows];
+	for (int i = 0; i < nrows; i++)
+		sign[i] = new char[ncols];
+	for (int r = 0; r < nrows; r++)
+		for (int c = 0; c < ncols; c++)
+		{
+			sign[r][c] = mb.sign[r][c];
+
+		}
+	lines = new float[lineSize * 3 * 2];
+	linePtr = lines;
+	for (int i = 0; i < lineSize * 3 * 2; i++) {
+		lines[i] = mb.lines[i];
+	}
+}
+
 unsigned int MatchingBox::Cell(char a, char b, char c, char d)
 {
 	unsigned int n = 0;
@@ -187,5 +209,8 @@ MatchingBox::~MatchingBox()
 {
 	for (int i = 0; i < nrows; i++)
 		delete[] sign[i];
-	delete[]sign;
+	delete[] sign;
+	delete[] lines;
+	delete linePtr;
+	
 }

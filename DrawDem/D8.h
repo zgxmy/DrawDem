@@ -12,6 +12,7 @@ public:
 	int** Water;
 	//const char dir[10] = {0,1,2,4,8,16,32,64,128,255};
 	D8(const DemData&);
+	D8(const D8& d);
 	~D8();
 	void PrintData(int t);
 	void PrintDataNIP(int t);

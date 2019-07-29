@@ -159,6 +159,11 @@ D8::D8(const DemData& dem)
 	delete[] slope;
 }
 
+D8::D8(const D8 & d)
+{
+
+}
+
 
 void D8::CalWater(int r,int c,D8 &d) {
 	if (r == 0 || r == nrows - 1 || c == 0 || c == ncols - 1)
@@ -330,9 +335,11 @@ D8::~D8()
 	for (int i = 0; i < nrows; i++)
 		delete[] dirData[i];
 	delete[]dirData;
+
 	for (int i = 0; i < nrows; i++)
 		delete[] Water[i];
 	delete[]Water;
+
 	for (int i = 0; i < nrows; i++)
 		delete[] NIP[i];
 	delete[]NIP;
