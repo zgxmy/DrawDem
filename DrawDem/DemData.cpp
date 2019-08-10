@@ -44,26 +44,26 @@ DemData::DemData(string dataPath)
 	infile.close();
 }
 
-DemData::DemData(const DemData &demData)
-{
-	ncols = demData.ncols;
-	nrows = demData.nrows;
-	xllcorner = demData.xllcorner;
-	yllcorner = demData.yllcorner;
-	cellsize = demData.cellsize;
-	nodata_value = demData.nodata_value;
-	averHeight = demData.averHeight;
-	deltaHeight = demData.deltaHeight;
-	this->data = new float *[nrows];
-	for (int i = 0; i < nrows; i++)
-		data[i] = new float[ncols];
-	for (int r = 0; r < nrows; r++)
-		for (int c = 0; c < ncols; c++)
-		{
-			data[r][c] = demData.data[r][c];
-		}
-	
-}
+//DemData::DemData(const DemData &demData)
+//{
+//	ncols = demData.ncols;
+//	nrows = demData.nrows;
+//	xllcorner = demData.xllcorner;
+//	yllcorner = demData.yllcorner;
+//	cellsize = demData.cellsize;
+//	nodata_value = demData.nodata_value;
+//	averHeight = demData.averHeight;
+//	deltaHeight = demData.deltaHeight;
+//	this->data = new float *[nrows];
+//	for (int i = 0; i < nrows; i++)
+//		data[i] = new float[ncols];
+//	for (int r = 0; r < nrows; r++)
+//		for (int c = 0; c < ncols; c++)
+//		{
+//			data[r][c] = demData.data[r][c];
+//		}
+//	
+//}
 
 
 
