@@ -187,7 +187,7 @@ int main()
 	renderType = (RenderType)0;
 	DemData d("Data\\1.asc");
 	
-	DemData d1("Data\\1.asc");
+	//DemData d1("Data\\1.asc");
 	/*for (int r = 0; r < d.nrows; r++){
 		for (int c = 0; c < d.ncols; c++)
 		{
@@ -195,11 +195,11 @@ int main()
 				cout << d.data[r][c];
 		}
 	}*/
-	D8 d8(d);
-	d8.PrintDataNIP(1);
+	//D8 d8(d);
+	//d8.PrintDataNIP(1);
 	//d8.PrintData(10);
-	dataPtr = &d;
-	dataRaw = new DemData("Data\\1.asc");
+	//dataPtr = &d;
+	//dataRaw = new DemData("Data\\1.asc");
 
 	demVertice = new float[d.ncols*d.nrows * 8];
 	demIndice = new int[d.ncols*d.nrows * 6];
