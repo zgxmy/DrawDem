@@ -30,6 +30,18 @@
     <ClCompile Include="D8.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ResourceManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="texture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleSystem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DemData.h">
@@ -50,6 +62,15 @@
     <ClInclude Include="stb_image.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="texture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleSystem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="FirstShader.frag" />
@@ -58,5 +79,11 @@
     <None Include="Line.fs" />
     <None Include="SkyBox.vs" />
     <None Include="SkyBox.fs" />
+    <None Include="Particle.vs">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="Particle.fs">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

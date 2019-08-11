@@ -1,4 +1,6 @@
-#include<glad/glad.h>
+//#include<glad/glad.h>
+#define GLEW_STATIC
+#include <GL/glew.h>
 #include<GLFW/glfw3.h>
 #include<iostream>
 #include<glm/glm.hpp>
@@ -15,7 +17,8 @@
 #include "d8.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
+#include "ResourceManager.h"
+#include "ParticleSystem.h"
 using namespace std;
 glm::vec3 HSVtoRGB(float h, float s, float v);
 void processInput(GLFWwindow *window);
@@ -34,7 +37,7 @@ vector<std::string> faces
 };
 
 
-float skyboxVertices[] = {
+GLfloat skyboxVertices[] = {
 	// positions          
 	-1.0f,  1.0f, -1.0f,
 	-1.0f, -1.0f, -1.0f,
@@ -110,16 +113,16 @@ void GetVerticeColor(const DemData* d,float* p,const int r, const int c) {
 	*(p + 2) = color.b;
 }
 
-unsigned int demVBO, demVAO, demEBO;
-unsigned int *contourVBO, *contourVAO;
-unsigned int gridVBO[2];
-unsigned int gridVAO[2];
+GLuint demVBO, demVAO, demEBO;
+GLuint *contourVBO, *contourVAO;
+GLuint gridVBO[2];
+GLuint gridVAO[2];
 
 float* rowLineVertice;
 float* colLineVertice;
 float* demVertice;
 int* demIndice;
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 1.0f), -90.0f, 60.0f);
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f, 0.0f);
 
 DemData* dataPtr;
 DemData* dataRaw;
@@ -170,7 +173,7 @@ void RaiseContour(float raiseAt,float raiseHeight) {
 	
 	//delete[] tempHeight;
 }
-
+ParticleSystem *particle;
 
 
 enum RenderType{
@@ -210,8 +213,9 @@ int main()
 			int cur = c + r * d.ncols;
 			//position
 			demVertice[cur * 8] = offset * c;
-			demVertice[cur * 8 + 1] = offset * r;
-			demVertice[cur * 8 + 2] = (d.data[r][c] - d.averHeight)*offset*0.1f;
+			demVertice[cur * 8 + 1] = (d.data[r][c] - d.averHeight)*offset*0.1f;
+			demVertice[cur * 8 + 2] = offset * r;
+			
 			//rgb	
 			GetVerticeColor(&d,&demVertice[cur * 8 + 3],r,c);
 			//uv
@@ -240,17 +244,19 @@ int main()
 	contour = &boxArray[0];
 
 	colLineVertice = new float[d.ncols * 3];
+	
+	float lineHeight = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
 	for (int i = 0; i < d.ncols; i++) {
 		colLineVertice[i * 3] = demVertice[i * 8];
 		colLineVertice[i * 3 + 1] = demVertice[i * 8 + 1];
-		colLineVertice[i * 3 + 2] = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
+		colLineVertice[i * 3 + 2] = 0;
 	}
 
 	rowLineVertice = new float[d.nrows * 3];
 	for (int i = 0; i < d.nrows; i++) {
 		rowLineVertice[i * 3] = demVertice[i * d.ncols * 8];
 		rowLineVertice[i * 3 + 1] = demVertice[i * d.ncols * 8 + 1];
-		rowLineVertice[i * 3 + 2] = (d.minHeight - d.averHeight)*offset*0.1f - 0.2f;
+		rowLineVertice[i * 3 + 2] = 0;
 	}
 
 	
@@ -268,9 +274,11 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	//MSAA
-	glfwWindowHint(GLFW_SAMPLES, 4);
+	//glfwWindowHint(GLFW_SAMPLES, 4);
 	//glEnable(GL_MULTISAMPLE);
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
+
 	GLFWwindow* window = glfwCreateWindow(800, 600, "DrawDem", NULL, NULL);
 	if (window == NULL)
 	{
@@ -279,26 +287,41 @@ int main()
 		return -1;
 	}
 	glfwMakeContextCurrent(window);
+
+	glewExperimental = GL_TRUE;
+	glewInit();
+	glGetError();
+
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	/*if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
-	}
+	}*/
+	// -----------------------------
+	
 
+	
+	Shader demShader = ResourceManager::LoadShader("FirstShader.vert", "FirstShader.frag", nullptr, "dem");
+	Shader lineShader = ResourceManager::LoadShader("Line.vs", "Line.fs", nullptr, "line");
+	Shader skyBoxShader = ResourceManager::LoadShader("SkyBox.vs", "SkyBox.fs", nullptr, "skyBox");
+	Shader particleShader = ResourceManager::LoadShader("Particle.vs", "Particle.fs", nullptr, "particle");
 
-	Shader ourShader("FirstShader.vert","FirstShader.frag");
-	Shader lineShader("Line.vs", "Line.fs");
-	Shader skyboxShader("SkyBox.vs", "SkyBox.fs");
+	ResourceManager::LoadTexture("rain.png", GL_TRUE, "rain");
+	ResourceManager::LoadTexture("particle.png", GL_TRUE, "particle");
+	ResourceManager::LoadTexture("grass1.jpg", GL_FALSE, "grass");
+	
+	particle = new ParticleSystem(ResourceManager::GetShader("particle"), ResourceManager::GetTexture("rain"), 500,glm::vec3(0,0,0));
 	
 
 	contourVAO = new unsigned int[contourSize];
 	contourVBO = new unsigned int[contourSize];
 	glGenBuffers(1, &demVBO);
 	glGenVertexArrays(1, &demVAO);
+
 	glGenBuffers(1, &demEBO);
 
 	glGenBuffers(2, gridVBO);
@@ -360,27 +383,27 @@ int main()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
 
-	unsigned int texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	// 为当前绑定的纹理对象设置环绕、过滤方式
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// 加载并生成纹理
-	int width, height, nrChannels;
-	unsigned char *data = stbi_load("grass1.jpg", &width, &height, &nrChannels, 0);
-	if (data)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
+	//unsigned int texture;
+	//glGenTextures(1, &texture);
+	//glBindTexture(GL_TEXTURE_2D, texture);
+	//// 为当前绑定的纹理对象设置环绕、过滤方式
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//// 加载并生成纹理
+	//int width, height, nrChannels;
+	//unsigned char *data = stbi_load("grass1.jpg", &width, &height, &nrChannels, 0);
+	//if (data)
+	//{
+	//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+	//	glGenerateMipmap(GL_TEXTURE_2D);
+	//}
+	//else
+	//{
+	//	std::cout << "Failed to load texture" << std::endl;
+	//}
+	//stbi_image_free(data);
 
 	//unsigned int cubeTexture = loadTexture("resources/textures/marble.jpg");
 
@@ -398,8 +421,8 @@ int main()
 	// shader configuration
 	// --------------------
 
-	skyboxShader.use();
-	skyboxShader.setInt("skybox", 0);
+	//skyBoxShader.Use();
+	//skyBoxShader.SetInteger("skybox", 0);
 
 
 
@@ -408,112 +431,141 @@ int main()
 	glViewport(0, 0, 800, 600);
 	
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	/*glDepthFunc(GL_LESS);
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);*/
 	
-	camera.SetPosition(glm::vec3(d.ncols*offset/2, d.ncols*offset / 2 - 1.5f , 0.8f));
+	//camera.SetPosition(glm::vec3(d.ncols*offset/2, d.ncols*offset / 2 - 1.5f , 0.8f));
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	//RaiseContour(900,  651.0f-900.0f);
 	while (!glfwWindowShouldClose(window))
 	{
-		
-
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
+		
 
 		processInput(window);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLineWidth(0.1f);
+
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		glm::mat4 view = camera.GetViewMatrix();
-		//glm::mat4 model;
 		glm::mat4 model = glm::mat4(1.0f);
 		
-
-
-		glBindTexture(GL_TEXTURE_2D, texture);
-		//draw dem
-		ourShader.use();
-		ourShader.setMat4("projection", projection);
-		ourShader.setMat4("view", view);
-		ourShader.setMat4("model", model);
-		ourShader.setInt("type", renderType);
+	
 		
-		glBindVertexArray(demVAO);
-		glDrawElements(GL_TRIANGLES, (d.ncols - 1)*(d.nrows - 1) * 6, GL_UNSIGNED_INT, 0);
-		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-		//glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
-		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		if(renderType == 0)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		else
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//glBindTexture(GL_TEXTURE_2D, texture);
 
 
-		lineShader.use();
-		lineShader.setVec3("color", glm::vec3(1.0f, 1.0f, 1.0f));
-		lineShader.setMat4("projection", projection);
-		lineShader.setMat4("view", view);
-		if (renderType == 0) {
-			//draw grid
+		//draw dem
+		//demShader.Use();
+		//demShader.SetMatrix4("projection", projection);
+		//demShader.SetMatrix4("view", view);
+		//demShader.SetMatrix4("model", model);
+		//demShader.SetInteger("type", 2);
+		//ResourceManager::GetTexture("grass").Bind();
+		//glBindVertexArray(demVAO);
+		//glDrawElements(GL_TRIANGLES, (d.ncols - 1)*(d.nrows - 1) * 6, GL_UNSIGNED_INT, 0);
+		////if(renderType == 0)
+		//	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		////else
+		//	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//	glBindVertexArray(0);
 			
-			glBindVertexArray(gridVAO[0]);
-			model = glm::mat4(1.0f);
-			for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
-			{
-				lineShader.setMat4("model", model);
-				model = glm::translate(model, glm::vec3(0.0f, offset * 3, 0.0f));
-				glDrawArrays(GL_LINE_STRIP, 0, d.ncols);
-			}
-			glBindVertexArray(gridVAO[1]);
-			model = glm::mat4(1.0f);
-			for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
-			{
-				lineShader.setMat4("model", model);
-				model = glm::translate(model, glm::vec3(offset * 3, 0.0f, 0.0f));
-				glDrawArrays(GL_LINE_STRIP, 0, d.nrows);
-			}
-			
-		}
+		
+		//lineShader.Use();
+		//lineShader.SetVector3f("color", glm::vec3(1.0f, 1.0f, 1.0f));
+		//lineShader.SetMatrix4("projection", projection);
+		//lineShader.SetMatrix4("view", view);
 
+		//if (renderType == 0) {
+		//	//draw grid
+		//	
+		//	glBindVertexArray(gridVAO[0]);
+		//	model = glm::mat4(1.0f);
+		//	for (unsigned int i = 0; i < d.nrows / 3.0f; i++)
+		//	{
+		//		lineShader.SetMatrix4("model", model);
+		//		model = glm::translate(model, glm::vec3(0.0f, offset * 3, 0.0f));
+		//		glDrawArrays(GL_LINE_STRIP, 0, d.ncols);
+		//	}
+		//	glBindVertexArray(gridVAO[1]);
+		//	model = glm::mat4(1.0f);
+		//	for (unsigned int i = 0; i < d.ncols / 3.0f; i++)
+		//	{
+		//		lineShader.SetMatrix4("model", model);
+		//		model = glm::translate(model, glm::vec3(offset * 3, 0.0f, 0.0f));
+		//		glDrawArrays(GL_LINE_STRIP, 0, d.nrows);
+		//	}
+		//	
+		//}
+		/*
 		
 		for (int i = 0; i < contourSize; i++) {
 			//TODO: Fade Color by HSV
-			lineShader.setVec3("color", glm::vec3(0.8f, 0.6f, 1.0f));
+			lineShader.SetVector3f("color", glm::vec3(0.8f, 0.6f, 1.0f));
 			glBindVertexArray(contourVAO[i]);
 			model = glm::mat4(1.0f);
-			lineShader.setMat4("model", model);
+			lineShader.SetMatrix4("model", model);
 			glLineWidth(5.0f);
 			glDrawArrays(GL_LINES, 0, boxArray[i].lineSize * 2);
 
 		}
-
-
-		if (renderType != 0) {
+		*/
 		
-			glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
-			skyboxShader.use();
-			model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(0.0f, 0.5f, 0.0f));
-			view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // remove translation from the view matrix
-			skyboxShader.setMat4("model", model);
-			skyboxShader.setMat4("view", view);
-			skyboxShader.setMat4("projection", projection);
-			// skybox cube
-			glBindVertexArray(skyboxVAO);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-			glBindVertexArray(0);
-			glDepthFunc(GL_LESS); // set depth function back to default
+		
+		particle->Update(deltaTime, 2);
+		particle->Draw(model,view,projection);
+
+
+		if (renderType != 0) {	
+			
+
+			demShader.Use();
+			demShader.SetMatrix4("projection", projection);
+			demShader.SetMatrix4("view", view);
+			demShader.SetMatrix4("model", model);
+			demShader.SetInteger("type", 2);
+			ResourceManager::GetTexture("grass").Bind();
+			glBindVertexArray(demVAO);
+			glDrawElements(GL_TRIANGLES, (d.ncols - 1)*(d.nrows - 1) * 6, GL_UNSIGNED_INT, 0);
+			//if(renderType == 0)
+				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			//else
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				glBindVertexArray(0);
+
+				
+
+			//glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+			//skyBoxShader.Use();
+			////model = glm::mat4(1.0f);
+			////model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+			////view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // remove translation from the view matrix
+			//skyBoxShader.SetMatrix4("model", model);
+			//skyBoxShader.SetMatrix4("view", view);
+			//skyBoxShader.SetMatrix4("projection", projection);
+			//// skybox cube
+			//glBindVertexArray(skyboxVAO);
+			//glActiveTexture(GL_TEXTURE0);
+			//glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+			//glDrawArrays(GL_TRIANGLES, 0, 36);
+			//glBindVertexArray(0);
+			//glDepthFunc(GL_LESS); // set depth function back to default
 		}
 		
+	
 
-
-		glfwSwapBuffers(window);
 		glfwPollEvents();
+		glfwSwapBuffers(window);
+		
 		
 	}
 
@@ -526,7 +578,7 @@ int main()
 	glDeleteBuffers(2, gridVBO);
 
 
-
+	ResourceManager::Clear();
 	glfwTerminate();
 	return 0;
 }

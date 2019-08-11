@@ -79,7 +79,7 @@
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;glfw3.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -127,21 +127,30 @@
     <ClCompile Include="DemData.cpp" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="MatchingBox.cpp" />
+    <ClCompile Include="ParticleSystem.cpp" />
+    <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="source.cpp" />
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="D8.h" />
     <ClInclude Include="DemData.h" />
     <ClInclude Include="MatchingBox.h" />
+    <ClInclude Include="ParticleSystem.h" />
+    <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FirstShader.frag" />
     <None Include="FirstShader.vert" />
     <None Include="Line.fs" />
     <None Include="Line.vs" />
+    <None Include="Particle.fs" />
+    <None Include="Particle.vs" />
     <None Include="SkyBox.fs" />
     <None Include="SkyBox.vs" />
   </ItemGroup>
